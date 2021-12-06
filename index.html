@@ -1,0 +1,335 @@
+<!-- Motion Coherence Task v0.2 (display only, no scoring) -->
+<!-- By Ahmed Elbokl, 2021, Ain Shams Neuromodulation Research Lab -->
+
+<html>
+<head>
+
+    <title>Motion Coherence Task | Ain Shams Neuromodulation Lab</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    
+    <!--import vue.js -->
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+</head>
+<body>
+
+    <div id="app">
+        <div v-if='showDebug' style="color:white">
+
+            Mode: {{mode}}, 
+            {{ mode == 'coherent'? 'Percent coherence: ' + percentCoherent + ',' : '' }}
+            Distribution: {{ coherentDistribution }}, 
+            Number of dots: {{dots.length}}, 
+            Dot lifetime: {{ lifetime }} ms, 
+            Number of coherent dots: {{ coherentDots.length }}
+
+        </div>
+
+        <div class="dot" v-for="dot in dots" :style="dot"></div>
+    </div>
+
+    <script>
+        var app = new Vue({
+
+            el: '#app',
+            data: {
+
+                //one right or left (direction) and continiusly replaced by new dots. Make the coherent dots a separate group and the random should cover all the screen.
+
+
+                //Settings
+                numberOfDots: 200, //number of dots to display
+                lifetime: 100, //in ms. This is the duration that each dot is displayed on screen before moving to a new position
+                mode: 'coherent', //Dots can all be 'random' or a percent of dots can be 'coherent'
+                randomDotRepositioning: 'nearby', //The new position of a random dot after its lifetime is over. Can be 'anywhere' on screen or 'nearby' to the last position of the dot.
+                percentCoherent: 0.10, //percent of dots to move coherently e.g 0.5 = 50%. Applicable only if mode is 'coherent'
+                coherentDistribution: 'sparse', //Distribution of coherent dots can be 'sparse' or 'dense'
+                coherentDirectionMode: 'constant', //coherent direction can be 'constant' or 'variable'. Constant will keep moving in one direction. Variable will change direction after each coherent dot's lifetime.
+                coherentConstantDirections: ['right', 'left'], //if coherent direction is 'constant' then this is the list of directions to choose from. It can be 'left', 'right', 'up' or 'down'. If left empty [], then the direction will be random in any direction (inculding diagonal)
+                markCoherent: false, //show coherent dots in red
+                showDebug: true, //show debug info
+                //end of settings
+
+                dots: [],
+                coherentLeftChange: null,
+                coherentTopChange: null,
+               
+            },
+
+            mounted() {
+                
+                //generate dots
+                this.generateDots(this.numberOfDots);
+
+                //coherence direction
+                if (this.coherentDirectionMode == 'constant'){
+
+                    this.determineCoherentDirection();
+                }
+
+                //start animation so that dots move continuously
+                this.animate();
+
+            },
+
+            methods: {
+
+                generateDots(number) {//initial generation of requested number of dots on the screen in random positions
+
+                    var dots = [];
+                    for (var i = 0; i < number; i++) {
+                        dots.push({
+                            index: i,
+                            left: Math.random() * 100 + '%',
+                            top: Math.random() * 100 + '%',
+                            background: 'white',
+                            mode: 'random',
+                        });
+                    }
+
+                    this.dots = dots;
+                    this.generateCoherence();                        
+                    
+                },
+
+                moveDots() {
+
+                    //mode can be random or coherent
+                    //in random mode, dots move randomly close to their original position
+                    //in coherent mode, a certain percentage of adjacent dots move in a coherent way
+                    //percent is the percentage of adjacent dots that move coherently
+                    var dots = this.dots;
+
+                    //determine coherent group 
+                    if (this.coherentDirectionMode == 'variable'){
+
+                        this.determineCoherentDirection();
+
+                    }
+
+                    for (var i = 0; i < dots.length; i++) {
+
+                        var left = dots[i].left;
+                        var top = dots[i].top;
+                        
+                        if (this.mode == 'coherent' && this.isCoherent(i)) {//This is a coherent dot: index of dot is in the array of coherent dots
+
+                            
+                            //if dot position is outside the screen, move it back to the screen on the opposite side
+                            if (parseInt(left) < 0) {
+                                left = '100%';
+                            }
+                            if (parseInt(left) > 100) {
+                                left = '0%';
+                            }
+                            if (parseInt(top) < 0) {
+                                top = '100%';
+                            }
+                            if (parseInt(top) > 100) {
+                                top = '0%';
+                            }
+                            
+                            //move in the determined direction                    
+                            var newLeft = parseInt(left) + this.coherentLeftChange + '%';
+                            var newTop = parseInt(top) + this.coherentTopChange + '%';
+
+                        } else {//this is a random dot
+                            
+                            if (this.randomDotRepositioning == 'nearby') {//move the dot randomly but close to its original position
+                            
+                                var newLeft = parseInt(left) + this.getRandomInt(-1, 1) + '%';
+                                var newTop = parseInt(top) + this.getRandomInt(-1, 1) + '%';
+
+                            } else if (this.randomDotRepositioning == 'anywhere') {//move the dot anywhere on the screen
+
+                                var newLeft = Math.random() * 100 + '%';
+                                var newTop = Math.random() * 100 + '%';
+
+                            }   
+
+                        }
+
+                        //update the position of the dot
+                        dots[i].left = newLeft;
+                        dots[i].top = newTop;
+
+                    }                   
+                    
+                },
+
+                animate() {
+
+                    var self = this;
+                    setInterval( () => {
+
+                        self.moveDots();
+
+                    }, this.lifetime);//move dots every 200ms
+
+                },
+
+                getRandomInt(min, max) {
+
+                    min = Math.ceil(min);
+                    max = Math.floor(max);
+                    return Math.floor(Math.random() * (max - min + 1)) + min;
+
+                },
+
+                generateCoherence(){//Determine coherent dots  
+
+                    //calculate number of dots that will move coherently
+                    var numberOfCoherentDots = this.dots.length * this.percentCoherent;
+
+                    //Select coherent dots based on spread: 'sparse': create an array of coherent dots of length numberOfCoherentDots 'dense' : will select a random dot and consider it to be the node for the coherent group, and then select the adjacent dots to the node and add them to the coherent group.
+
+                    if(this.coherentDistribution == 'sparse'){
+
+                        //create an array of coherent dots of length numberOfCoherentDots
+                        for (var i = 0; i < numberOfCoherentDots; i++) {//for complete random selection of coherent dots (not adjacent)
+                            //this.coherentDots.push(this.dots[i]);
+                            this.dots[i].mode = 'coherent';
+                            //if markCoherent is true, change the color of the dot to red
+                            if (this.markCoherent) {
+
+                                this.dots[i].background = 'red';
+
+                            }
+                        }
+
+                    } else if (this.coherentDistribution == 'dense'){
+
+                    //select a random dot from the array of this.dots to become the central node of the coherent group
+                    var centralDot= this.dots[Math.floor(Math.random() * this.dots.length)];
+                    var nodeLeft = parseInt(centralDot.left);
+                    var nodeTop = parseInt(centralDot.top);
+
+                    //loop through the dots and select the ones that are close to the random dot and add them to the coherent group
+                    for (var i = 0; i < this.dots.length; i++) {
+
+                        var dot = this.dots[i];
+                        var left = parseInt(dot.left);
+                        var top = parseInt(dot.top);
+
+                        //if the current dot's left or top has a difference of less than a specific extent from the central dot's left or top, add it to the coherent group
+                        let extent = this.percentCoherent * 150;//the distance to include in the coherent group (from the node) will increase as the percentCoherent increases
+
+                        if (Math.abs(left - nodeLeft) < extent && Math.abs(top - nodeTop) < extent) {
+
+                            //this.coherentDots.push(dot);
+                            this.dots[i].mode = 'coherent';
+
+                            //if markCoherent is true, change the color of the dot to red
+                            if (this.markCoherent) {
+                                this.dots[i].background = 'red';
+                            }
+
+                        }
+
+                        //Break loop if the number of coherent dots reached the number of coherent dots required
+                        if (this.coherentDots.length == numberOfCoherentDots) {
+
+                            break;
+
+                        }
+
+                    }
+
+                }
+                    //determine the direction of movement of the coherent dots (random but all coherent will follow the same direction)
+                    //this will make the coherent group move in one direction all the time till it gets out of screen. Add this to moveDots() to make it less obvious
+                    // this.coherentLeftChange = this.getRandomInt(-1, 1);
+                    // this.coherentTopChange = this.getRandomInt(-1, 1);
+
+
+                },
+
+                isCoherent(index) {
+
+                    //returns true if the dot at index is in the coherent group
+                    //return this.coherentDots.indexOf( dot => dot.index == index ) > -1;
+                    return this.dots[index].mode == 'coherent';
+
+                },
+
+                determineCoherentDirection() {
+
+                    //determine the direction of movement of the coherent dots
+
+                    if(this.coherentDirectionMode == 'variable' || this.coherentConstantDirections.length == 0){
+
+                        this.coherentLeftChange = this.getRandomInt(-1, 1);
+                        this.coherentTopChange = this.getRandomInt(-1, 1);
+                        return;
+
+                    }
+
+                    //if the coherent directions array is not empty, randomly select a coherent direction from the array
+                    var index = Math.floor(Math.random() * this.coherentConstantDirections.length);
+                    var direction = this.coherentConstantDirections[index];
+
+                    //Move coherent dots based on direction
+                    if (direction == 'right') {
+
+                        this.coherentLeftChange = 1;
+                        this.coherentTopChange = 0;
+
+                    } else if (direction == 'left') {
+
+                        this.coherentLeftChange = -1;
+                        this.coherentTopChange = 0;
+
+                    } else if (direction == 'up') {
+
+                        this.coherentLeftChange = 0;
+                        this.coherentTopChange = -1;
+
+                    } else if (direction == 'down') {
+
+                        this.coherentLeftChange = 0;
+                        this.coherentTopChange = 1;
+
+                    }
+
+
+
+                },
+            },
+
+            computed:{
+
+                coherentDots(){
+
+                    //returns the coherent dots
+                    return this.dots.filter( dot => dot.mode == 'coherent' );
+
+                },
+            }
+        });
+    </script>
+</html>
+
+<style>
+
+    /* let body be black */
+    body {
+        background-color: #000;
+    }
+
+    /* disable scrollbar */
+    html {
+        overflow: hidden;
+    }
+
+    /* dots */
+    .dot {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+    }
+
+</style>
