@@ -50,7 +50,7 @@
                 percentCoherent: 0.80, //percent of dots to move coherently e.g 0.5 = 50%. Applicable only if mode is 'coherent'
                 coherentDistribution: 'sparse', //Distribution of coherent dots can be 'sparse' or 'dense'
                 coherentDirectionMode: 'constant', //coherent direction can be 'constant' or 'variable'. Constant will keep moving in one direction. Variable will change direction after each coherent dot's lifetime.
-                coherentConstantDirections: ['left'], //if coherent direction is 'constant' then this is the list of directions to choose from. It can be 'left', 'right', 'up' or 'down'. If left empty [], then the direction will be random in any direction (inculding diagonal)
+                coherentConstantDirections: ['left','right'], //if coherent direction is 'constant' then this is the list of directions to choose from. It can be 'left', 'right', 'up' and 'down'. If left empty [], then the direction will be random in any direction (inculding diagonal)
                 markCoherent: false, //show coherent dots in red
                 showDebug: false, //show debug info
                 speed: 198, //speed pixel/second (will remain constant even if dots liftime is changed)
