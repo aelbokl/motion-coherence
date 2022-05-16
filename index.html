@@ -1,5 +1,5 @@
 <!-- Motion Coherence Task v0.2 (display only, no scoring) -->
-<!-- By Ahmed Elbokl, 2021, Ain Shams Neuromodulation Research Lab -->
+<!-- By Ahmed M. Elbokl, 2021, Ain Shams University Neuromodulation Research Lab -->
 
 <html>
 <head>
@@ -24,11 +24,13 @@
             Distribution: {{ coherentDistribution }}, 
             Number of dots: {{dots.length}}, 
             Dot lifetime: {{ lifetime }} ms, 
-            Number of coherent dots: {{ coherentDots.length }}
-
+            Number of coherent dots: {{ coherentDots.length }},
+            Speed {{ speed }} pixels,
+       
         </div>
 
         <div class="dot" v-for="dot in dots" :style="dot"></div>
+
     </div>
 
     <script>
@@ -40,18 +42,21 @@
                 //one right or left (direction) and continiusly replaced by new dots. Make the coherent dots a separate group and the random should cover all the screen.
 
 
-                //Settings
+                //### Settings ###
                 numberOfDots: 200, //number of dots to display
                 lifetime: 100, //in ms. This is the duration that each dot is displayed on screen before moving to a new position
                 mode: 'coherent', //Dots can all be 'random' or a percent of dots can be 'coherent'
-                randomDotRepositioning: 'nearby', //The new position of a random dot after its lifetime is over. Can be 'anywhere' on screen or 'nearby' to the last position of the dot.
-                percentCoherent: 0.10, //percent of dots to move coherently e.g 0.5 = 50%. Applicable only if mode is 'coherent'
+                randomDotRepositioning: 'nearby', //The new position of a random dot after its lifetime is over. Can be 'anywhere' on screen or 'nearby' to the last position of the dot. Nearby is brownian motion.
+                percentCoherent: 0.80, //percent of dots to move coherently e.g 0.5 = 50%. Applicable only if mode is 'coherent'
                 coherentDistribution: 'sparse', //Distribution of coherent dots can be 'sparse' or 'dense'
                 coherentDirectionMode: 'constant', //coherent direction can be 'constant' or 'variable'. Constant will keep moving in one direction. Variable will change direction after each coherent dot's lifetime.
-                coherentConstantDirections: ['right', 'left'], //if coherent direction is 'constant' then this is the list of directions to choose from. It can be 'left', 'right', 'up' or 'down'. If left empty [], then the direction will be random in any direction (inculding diagonal)
+                coherentConstantDirections: ['left'], //if coherent direction is 'constant' then this is the list of directions to choose from. It can be 'left', 'right', 'up' or 'down'. If left empty [], then the direction will be random in any direction (inculding diagonal)
                 markCoherent: false, //show coherent dots in red
-                showDebug: true, //show debug info
-                //end of settings
+                showDebug: false, //show debug info
+                speed: 198, //speed pixel/second (will remain constant even if dots liftime is changed)
+                displayWidth: 476, //pixels. The width of the area where stimuli (dots) are to be displayed.
+                displayHeight: 317, //pixels. The height of the area where stimuli (dots) are to be displayed.
+                //### end of settings ###
 
                 dots: [],
                 coherentLeftChange: null,
@@ -83,8 +88,8 @@
                     for (var i = 0; i < number; i++) {
                         dots.push({
                             index: i,
-                            left: Math.random() * 100 + '%',
-                            top: Math.random() * 100 + '%',
+                            left: this.randomIntFromInterval(this.leftMargin, this.rightMargin) + 'px',
+                            top: this.randomIntFromInterval(this.topMargin, this.bottomMargin) + 'px',
                             background: 'white',
                             mode: 'random',
                         });
@@ -93,6 +98,12 @@
                     this.dots = dots;
                     this.generateCoherence();                        
                     
+                },
+
+                randomIntFromInterval(min, max) { // min and max included 
+
+                    return Math.floor(Math.random() * (max - min + 1) + min)
+
                 },
 
                 moveDots() {
@@ -114,39 +125,38 @@
 
                         var left = dots[i].left;
                         var top = dots[i].top;
+
+                         //Set Display area: if dot position is outside the screen, move it back to the screen on the opposite side
+                         if (parseInt(left) < this.leftMargin) {
+                                left = this.rightMargin+'px';
+                            }
+                        if (parseInt(left) > this.rightMargin) {
+                            left = this.leftMargin+'px';
+                        }
+                        if (parseInt(top) < this.topMargin) {
+                            top = this.bottomMargin+'px';
+                        }
+                        if (parseInt(top) > this.bottomMargin) {
+                            top = this.topMargin+'px';
+                        }
                         
                         if (this.mode == 'coherent' && this.isCoherent(i)) {//This is a coherent dot: index of dot is in the array of coherent dots
-
-                            
-                            //if dot position is outside the screen, move it back to the screen on the opposite side
-                            if (parseInt(left) < 0) {
-                                left = '100%';
-                            }
-                            if (parseInt(left) > 100) {
-                                left = '0%';
-                            }
-                            if (parseInt(top) < 0) {
-                                top = '100%';
-                            }
-                            if (parseInt(top) > 100) {
-                                top = '0%';
-                            }
                             
                             //move in the determined direction                    
-                            var newLeft = parseInt(left) + this.coherentLeftChange + '%';
-                            var newTop = parseInt(top) + this.coherentTopChange + '%';
+                            var newLeft = parseInt(left) + this.coherentLeftChange + 'px';
+                            var newTop = parseInt(top) + this.coherentTopChange + 'px';
 
                         } else {//this is a random dot
                             
                             if (this.randomDotRepositioning == 'nearby') {//move the dot randomly but close to its original position
                             
-                                var newLeft = parseInt(left) + this.getRandomInt(-1, 1) + '%';
-                                var newTop = parseInt(top) + this.getRandomInt(-1, 1) + '%';
+                                var newLeft = parseInt(left) + this.getRandomInt(-this.speedPerLifetime, this.speedPerLifetime) + 'px';
+                                var newTop = parseInt(top) + this.getRandomInt(-this.speedPerLifetime, this.speedPerLifetime) + 'px';
 
                             } else if (this.randomDotRepositioning == 'anywhere') {//move the dot anywhere on the screen
 
-                                var newLeft = Math.random() * 100 + '%';
-                                var newTop = Math.random() * 100 + '%';
+                                var newLeft = Math.random() * this.displayWidth + 'px';
+                                var newTop = Math.random() * this.displayHeight + 'px';
 
                             }   
 
@@ -167,7 +177,7 @@
 
                         self.moveDots();
 
-                    }, this.lifetime);//move dots every 200ms
+                    }, this.lifetime);//move dots based on lifetime (in ms)
 
                 },
 
@@ -202,41 +212,41 @@
 
                     } else if (this.coherentDistribution == 'dense'){
 
-                    //select a random dot from the array of this.dots to become the central node of the coherent group
-                    var centralDot= this.dots[Math.floor(Math.random() * this.dots.length)];
-                    var nodeLeft = parseInt(centralDot.left);
-                    var nodeTop = parseInt(centralDot.top);
+                        //select a random dot from the array of this.dots to become the central node of the coherent group
+                        var centralDot= this.dots[Math.floor(Math.random() * this.dots.length)];
+                        var nodeLeft = parseInt(centralDot.left);
+                        var nodeTop = parseInt(centralDot.top);
 
-                    //loop through the dots and select the ones that are close to the random dot and add them to the coherent group
-                    for (var i = 0; i < this.dots.length; i++) {
+                        //loop through the dots and select the ones that are close to the random dot and add them to the coherent group
+                        for (var i = 0; i < this.dots.length; i++) {
 
-                        var dot = this.dots[i];
-                        var left = parseInt(dot.left);
-                        var top = parseInt(dot.top);
+                            var dot = this.dots[i];
+                            var left = parseInt(dot.left);
+                            var top = parseInt(dot.top);
 
-                        //if the current dot's left or top has a difference of less than a specific extent from the central dot's left or top, add it to the coherent group
-                        let extent = this.percentCoherent * 150;//the distance to include in the coherent group (from the node) will increase as the percentCoherent increases
+                            //if the current dot's left or top has a difference of less than a specific extent from the central dot's left or top, add it to the coherent group
+                            let extent = this.percentCoherent * 150;//the distance to include in the coherent group (from the node) will increase as the percentCoherent increases
 
-                        if (Math.abs(left - nodeLeft) < extent && Math.abs(top - nodeTop) < extent) {
+                            if (Math.abs(left - nodeLeft) < extent && Math.abs(top - nodeTop) < extent) {
 
-                            //this.coherentDots.push(dot);
-                            this.dots[i].mode = 'coherent';
+                                //this.coherentDots.push(dot);
+                                this.dots[i].mode = 'coherent';
 
-                            //if markCoherent is true, change the color of the dot to red
-                            if (this.markCoherent) {
-                                this.dots[i].background = 'red';
+                                //if markCoherent is true, change the color of the dot to red
+                                if (this.markCoherent) {
+                                    this.dots[i].background = 'red';
+                                }
+
+                            }
+
+                            //Break loop if the number of coherent dots reached the number of coherent dots required
+                            if (this.coherentDots.length == numberOfCoherentDots) {
+
+                                break;
+
                             }
 
                         }
-
-                        //Break loop if the number of coherent dots reached the number of coherent dots required
-                        if (this.coherentDots.length == numberOfCoherentDots) {
-
-                            break;
-
-                        }
-
-                    }
 
                 }
                     //determine the direction of movement of the coherent dots (random but all coherent will follow the same direction)
@@ -261,8 +271,8 @@
 
                     if(this.coherentDirectionMode == 'variable' || this.coherentConstantDirections.length == 0){
 
-                        this.coherentLeftChange = this.getRandomInt(-1, 1);
-                        this.coherentTopChange = this.getRandomInt(-1, 1);
+                        this.coherentLeftChange = this.getRandomInt(-this.speedPerLifetime, this.speedPerLifetime);
+                        this.coherentTopChange = this.getRandomInt(-this.speedPerLifetime, this.speedPerLifetime);
                         return;
 
                     }
@@ -274,23 +284,23 @@
                     //Move coherent dots based on direction
                     if (direction == 'right') {
 
-                        this.coherentLeftChange = 1;
+                        this.coherentLeftChange = this.speedPerLifetime;
                         this.coherentTopChange = 0;
 
                     } else if (direction == 'left') {
 
-                        this.coherentLeftChange = -1;
+                        this.coherentLeftChange = -this.speedPerLifetime;
                         this.coherentTopChange = 0;
 
                     } else if (direction == 'up') {
 
                         this.coherentLeftChange = 0;
-                        this.coherentTopChange = -1;
+                        this.coherentTopChange = -this.speedPerLifetime;
 
                     } else if (direction == 'down') {
 
                         this.coherentLeftChange = 0;
-                        this.coherentTopChange = 1;
+                        this.coherentTopChange = this.speedPerLifetime;
 
                     }
 
@@ -307,6 +317,38 @@
                     return this.dots.filter( dot => dot.mode == 'coherent' );
 
                 },
+
+                speedPerLifetime(){
+
+                    return (this.speed * this.lifetime) /1000
+
+                },
+
+                leftMargin(){
+
+                    let margin = (screen.width - this.displayWidth)/2;
+                    return margin
+
+                },
+
+                rightMargin(){
+
+                    return this.leftMargin + this.displayWidth;
+
+                },
+
+                topMargin(){
+
+                    let margin = (screen.height - this.displayHeight)/2;
+                    return margin
+
+                },
+
+                bottomMargin(){
+
+                    return this.topMargin + this.displayHeight;
+
+                }
             }
         });
     </script>
@@ -327,8 +369,8 @@
     /* dots */
     .dot {
         position: absolute;
-        width: 10px;
-        height: 10px;
+        width: 12px;
+        height: 12px;
         border-radius: 50%;
     }
 
